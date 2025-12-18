@@ -15,7 +15,9 @@ from urllib.parse import urlparse
 from celery.schedules import crontab
 from dateparser.languages.loader import LocaleDataLoader
 from django.utils.translation import gettext_lazy as _
+import sentry_sdk
 from dotenv import load_dotenv
+from sentry_sdk.integrations.django import DjangoIntegration
 
 logger = logging.getLogger("paperless.settings")
 
@@ -1400,4 +1402,39 @@ WEBHOOKS_ALLOWED_PORTS = set(
 WEBHOOKS_ALLOW_INTERNAL_REQUESTS = __get_boolean(
     "PAPERLESS_WEBHOOKS_ALLOW_INTERNAL_REQUESTS",
     "true",
+)
+
+###############################################################################
+# Sentry
+###############################################################################
+
+SENTRY_TRACES_SAMPLE_RATE = 0.01
+
+
+def sentry_traces_sampler(sampling_context):
+    """Ignore performance for certain requests in Sentry"""
+    path = sampling_context.get("wsgi_environ", {}).get("PATH_INFO", "")
+    ignore = path.startswith("/api/status") or path.startswith("/api/statistics")
+    return 0 if ignore else SENTRY_TRACES_SAMPLE_RATE
+
+
+def sentry_before_send_transaction(event, hint):
+    spans = event.get("spans")
+    if isinstance(spans, list):
+        event["spans"] = [span for span in spans if span.get("op") != "middleware.django"]
+    return event
+
+
+sentry_sdk.init(
+    dsn=os.getenv("SENTRY_DSN"),
+    send_default_pii=True,
+    traces_sampler=sentry_traces_sampler,
+    before_send_transaction=sentry_before_send_transaction,
+    profile_session_sample_rate=0.01,
+    profile_lifecycle="trace",
+    integrations=[
+        DjangoIntegration(
+            cache_spans=True,
+        ),
+    ],
 )
