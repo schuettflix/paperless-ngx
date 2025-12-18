@@ -735,7 +735,14 @@ def _parse_db_settings() -> dict:
                         },
                     },
                 )
-
+        # Enable connection health checks to automatically reconnect on closed connections
+        # This prevents OperationalError crashes in Celery workers
+        databases["default"]["CONN_HEALTH_CHECKS"] = True
+        # Keep connections alive for 5 minutes (300 seconds)
+        # Set to None to close after each request, or 0 for persistent connections
+        databases["default"]["CONN_MAX_AGE"] = int(
+            os.getenv("PAPERLESS_DB_CONN_MAX_AGE", 300)
+        )
         databases["default"]["ENGINE"] = engine
         databases["default"]["OPTIONS"].update(options)
 
