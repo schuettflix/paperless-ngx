@@ -2165,6 +2165,7 @@ dependencies = [
     { name = "redis", extra = ["hiredis"], marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "regex", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "scikit-learn", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "sentry-sdk", extra = ["celery", "django"], marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "setproctitle", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "tika-client", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "tqdm", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
@@ -2309,6 +2310,7 @@ requires-dist = [
     { name = "redis", extras = ["hiredis"], specifier = "~=5.2.1" },
     { name = "regex", specifier = ">=2025.9.18" },
     { name = "scikit-learn", specifier = "~=1.7.0" },
+    { name = "sentry-sdk", extras = ["celery", "django"], specifier = ">=2.47.0" },
     { name = "setproctitle", specifier = "~=1.3.4" },
     { name = "tika-client", specifier = "~=0.10.0" },
     { name = "tqdm", specifier = "~=4.67.1" },
@@ -3723,6 +3725,27 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/cd/90/d5fea46ff191d02c2380a779b119ea6799751b79fcddb2bb230b21b38fc5/selectolax-0.3.29-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:b0c9005e9089a6b0c6fb6a9f691ddbbb10a3a23ebeff54393980340f3dbcdb99", size = 5637529, upload-time = "2025-04-30T15:16:46.175Z" },
     { url = "https://files.pythonhosted.org/packages/9d/83/7f876a515f5af31f7b948cf10951be896fe6deeff2b9b713640c8ec82fd3/selectolax-0.3.29-cp313-cp313-musllinux_1_2_i686.whl", hash = "sha256:ac940963c52f13cdf5d7266a979744949b660d367ce669efa073b557f6e09a18", size = 5379121, upload-time = "2025-04-30T15:16:47.909Z" },
     { url = "https://files.pythonhosted.org/packages/57/cb/7dc739a484b1a17ccf92a23dfe558ae615c232bd81e78a72049c25d1ff66/selectolax-0.3.29-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:484274f73839f9a143f4c13ce1b0a0123b5d64be22f967a1dc202a9a78687d67", size = 5727944, upload-time = "2025-04-30T15:16:49.52Z" },
+]
+
+[[package]]
+name = "sentry-sdk"
+version = "2.48.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "certifi", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "urllib3", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/40/f0/0e9dc590513d5e742d7799e2038df3a05167cba084c6ca4f3cdd75b55164/sentry_sdk-2.48.0.tar.gz", hash = "sha256:5213190977ff7fdff8a58b722fb807f8d5524a80488626ebeda1b5676c0c1473", size = 384828, upload-time = "2025-12-16T14:55:41.722Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4d/19/8d77f9992e5cbfcaa9133c3bf63b4fbbb051248802e1e803fed5c552fbb2/sentry_sdk-2.48.0-py2.py3-none-any.whl", hash = "sha256:6b12ac256769d41825d9b7518444e57fa35b5642df4c7c5e322af4d2c8721172", size = 414555, upload-time = "2025-12-16T14:55:40.152Z" },
+]
+
+[package.optional-dependencies]
+celery = [
+    { name = "celery", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+]
+django = [
+    { name = "django", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
 ]
 
 [[package]]
