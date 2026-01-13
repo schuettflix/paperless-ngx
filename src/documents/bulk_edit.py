@@ -271,13 +271,22 @@ def modify_custom_fields(
     # updating doclinks is still done in a for loop due to complexity,
     # and bulk editing 100+ documents to have the same doclink seems
     # a bit contrived
+    # Collect all document IDs needing timestamp updates for batching
+    doclink_modified_ids: set[int] = set()
+
     for field_id, value in add_custom_fields:
         custom_field = custom_fields.get(id=field_id)
         if custom_field.data_type == CustomField.FieldDataType.DOCUMENTLINK:
             for doc_id in affected_docs:
                 if not (value and doc_id in value):
                     doc = Document.objects.get(id=doc_id)
-                    reflect_doclinks(doc, custom_field, value)
+                    modified_ids = reflect_doclinks(
+                        doc,
+                        custom_field,
+                        value,
+                        skip_timestamp_update=True,
+                    )
+                    doclink_modified_ids.update(modified_ids)
 
     # For doc link fields that are being removed, remove symmetrical links
     for doclink_being_removed_instance in CustomFieldInstance.objects.filter(
@@ -287,12 +296,21 @@ def modify_custom_fields(
         value_document_ids__isnull=False,
     ):
         for target_doc_id in doclink_being_removed_instance.value:
-            remove_doclink(
+            removed_ids = remove_doclink(
                 document=Document.objects.get(
                     id=doclink_being_removed_instance.document.id,
                 ),
                 field=doclink_being_removed_instance.field,
                 target_doc_id=target_doc_id,
+                skip_timestamp_update=True,
+            )
+            doclink_modified_ids.update(removed_ids)
+
+    # Batch update all modified document timestamps in single atomic operation
+    if doclink_modified_ids:
+        with transaction.atomic():
+            Document.objects.filter(id__in=doclink_modified_ids).update(
+                modified=timezone.now(),
             )
 
     # Finally, remove the custom fields
@@ -683,10 +701,19 @@ def reflect_doclinks(
     document: Document,
     field: CustomField,
     target_doc_ids: list[int],
-):
+    skip_timestamp_update: bool = False,
+) -> set[int]:
     """
-    Add or remove 'symmetrical' links to `document` on all `target_doc_ids`
+    Add or remove 'symmetrical' links to `document` on all `target_doc_ids`.
+
+    Args:
+        skip_timestamp_update: If True, skip timestamp update and return affected IDs
+                               for batched update by caller. Default False for backward compat.
+
+    Returns:
+        set[int]: Document IDs that were modified (for batching when skip=True).
     """
+    modified_doc_ids: set[int] = set()
 
     if target_doc_ids is None:
         target_doc_ids = []
@@ -699,11 +726,13 @@ def reflect_doclinks(
     if current_field_instance is not None and current_field_instance.value is not None:
         for doc_id in current_field_instance.value:
             if doc_id not in target_doc_ids:
-                remove_doclink(
+                removed_ids = remove_doclink(
                     document=document,
                     field=field,
                     target_doc_id=doc_id,
+                    skip_timestamp_update=skip_timestamp_update,
                 )
+                modified_doc_ids.update(removed_ids)
 
     # Create an instance if target doc doesn't have this field or append it to an existing one
     existing_custom_field_instances = {
@@ -739,25 +768,46 @@ def reflect_doclinks(
         custom_field_instances_to_update,
         ["value_document_ids"],
     )
-    Document.objects.filter(id__in=target_doc_ids).update(modified=timezone.now())
+
+    # Collect all target doc IDs that were modified
+    modified_doc_ids.update(target_doc_ids)
+
+    if not skip_timestamp_update:
+        Document.objects.filter(id__in=target_doc_ids).update(modified=timezone.now())
+
+    return modified_doc_ids
 
 
 def remove_doclink(
     document: Document,
     field: CustomField,
     target_doc_id: int,
-):
+    skip_timestamp_update: bool = False,
+) -> set[int]:
     """
-    Removes a 'symmetrical' link to `document` from the target document's existing custom field instance
+    Removes a 'symmetrical' link to `document` from the target document's existing custom field instance.
+
+    Args:
+        skip_timestamp_update: If True, skip timestamp update and return affected ID
+                               for batched update by caller. Default False for backward compat.
+
+    Returns:
+        set[int]: {target_doc_id} if link was removed, empty set otherwise.
     """
     target_doc_field_instance = CustomFieldInstance.objects.filter(
         document_id=target_doc_id,
         field=field,
     ).first()
+    was_modified = False
     if (
         target_doc_field_instance is not None
         and document.id in target_doc_field_instance.value
     ):
         target_doc_field_instance.value.remove(document.id)
         target_doc_field_instance.save()
-    Document.objects.filter(id=target_doc_id).update(modified=timezone.now())
+        was_modified = True
+
+    if not skip_timestamp_update:
+        Document.objects.filter(id=target_doc_id).update(modified=timezone.now())
+
+    return {target_doc_id} if was_modified else set()

@@ -1062,3 +1062,118 @@ class TestPDFActions(DirectoriesMixin, TestCase):
                 bulk_edit.edit_pdf(doc_ids, operations, update_document=True)
         mock_group.assert_not_called()
         mock_consume_file.assert_not_called()
+
+    def test_reflect_doclinks_returns_modified_ids(self):
+        """
+        GIVEN:
+            - 3 existing documents
+            - Existing doc link custom field
+        WHEN:
+            - reflect_doclinks is called with skip_timestamp_update=True
+        THEN:
+            - Returns all affected document IDs
+        """
+        cf = CustomField.objects.create(
+            name="links",
+            data_type=CustomField.FieldDataType.DOCUMENTLINK,
+        )
+
+        # First link: doc1 -> [doc2, doc3] with skip=True
+        modified_ids = bulk_edit.reflect_doclinks(
+            self.doc1,
+            cf,
+            [self.doc2.id, self.doc3.id],
+            skip_timestamp_update=True,
+        )
+        self.assertEqual(modified_ids, {self.doc2.id, self.doc3.id})
+
+        # Update link: doc1 -> [doc2] (removes doc3)
+        modified_ids = bulk_edit.reflect_doclinks(
+            self.doc1,
+            cf,
+            [self.doc2.id],
+            skip_timestamp_update=True,
+        )
+        # Both doc2 and doc3 are affected (doc3 had link removed)
+        self.assertEqual(modified_ids, {self.doc2.id, self.doc3.id})
+
+    def test_reflect_doclinks_default_updates_timestamp(self):
+        """
+        GIVEN:
+            - 2 existing documents
+            - Existing doc link custom field
+        WHEN:
+            - reflect_doclinks is called without skip_timestamp_update (default)
+        THEN:
+            - Target document timestamps are updated immediately
+        """
+        import time
+
+        cf = CustomField.objects.create(
+            name="links",
+            data_type=CustomField.FieldDataType.DOCUMENTLINK,
+        )
+
+        doc2_modified_before = self.doc2.modified
+        time.sleep(0.01)  # Ensure time difference
+
+        # Default (no skip flag) - should update immediately
+        bulk_edit.reflect_doclinks(self.doc1, cf, [self.doc2.id])
+
+        self.doc2.refresh_from_db()
+        self.assertGreater(self.doc2.modified, doc2_modified_before)
+
+    def test_remove_doclink_returns_empty_when_no_change(self):
+        """
+        GIVEN:
+            - 2 existing documents with no doc link relationship
+            - Existing doc link custom field
+        WHEN:
+            - remove_doclink is called for non-existent link
+        THEN:
+            - Returns empty set
+        """
+        cf = CustomField.objects.create(
+            name="links",
+            data_type=CustomField.FieldDataType.DOCUMENTLINK,
+        )
+
+        # No link exists, so nothing to remove
+        removed_ids = bulk_edit.remove_doclink(
+            self.doc1,
+            cf,
+            self.doc2.id,
+            skip_timestamp_update=True,
+        )
+        self.assertEqual(removed_ids, set())
+
+    def test_remove_doclink_returns_id_when_link_removed(self):
+        """
+        GIVEN:
+            - 2 existing documents with doc link relationship
+            - Existing doc link custom field
+        WHEN:
+            - remove_doclink is called to remove the link
+        THEN:
+            - Returns set containing target doc ID
+        """
+        cf = CustomField.objects.create(
+            name="links",
+            data_type=CustomField.FieldDataType.DOCUMENTLINK,
+        )
+
+        # First create a link from doc2 to doc1
+        CustomFieldInstance.objects.create(
+            document=self.doc2,
+            field=cf,
+            value_document_ids=[self.doc1.id],
+        )
+
+        # Now remove the link
+        removed_ids = bulk_edit.remove_doclink(
+            self.doc1,
+            cf,
+            self.doc2.id,
+            skip_timestamp_update=True,
+        )
+        self.assertEqual(removed_ids, {self.doc2.id})
