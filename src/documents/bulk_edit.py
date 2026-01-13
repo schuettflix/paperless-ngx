@@ -114,10 +114,7 @@ def add_tag(doc_ids: list[int], tag: int) -> Literal["OK"]:
         )
 
     if to_create:
-        DocumentTagRelationship.objects.bulk_create(
-            to_create,
-            ignore_conflicts=True,  # Prevent duplicate key errors in concurrent requests
-        )
+        DocumentTagRelationship.objects.bulk_create(to_create)
 
     if affected_docs:
         bulk_update_documents.delay(document_ids=list(affected_docs))
@@ -265,10 +262,7 @@ def modify_custom_fields(
             instances_to_update.append(existing)
     # actually do the create and updates
     if instances_to_create:
-        CustomFieldInstance.objects.bulk_create(
-            instances_to_create,
-            ignore_conflicts=True,  # Prevent duplicate key errors in concurrent requests
-        )
+        CustomFieldInstance.objects.bulk_create(instances_to_create)
     if instances_to_update:
         CustomFieldInstance.objects.bulk_update(
             instances_to_update,
@@ -740,10 +734,7 @@ def reflect_doclinks(
             target_doc_field_instance.value_document_ids.append(document.id)
             custom_field_instances_to_update.append(target_doc_field_instance)
 
-    CustomFieldInstance.objects.bulk_create(
-        custom_field_instances_to_create,
-        ignore_conflicts=True,  # Prevent duplicate key errors in concurrent requests
-    )
+    CustomFieldInstance.objects.bulk_create(custom_field_instances_to_create)
     CustomFieldInstance.objects.bulk_update(
         custom_field_instances_to_update,
         ["value_document_ids"],
