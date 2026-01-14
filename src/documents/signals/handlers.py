@@ -413,8 +413,15 @@ def update_filename_and_move_files(
     instance: Document | CustomFieldInstance,
     **kwargs,
 ):
+    import time
+
+    func_start = time.time()
+    doc_id = instance.document.pk if isinstance(instance, CustomFieldInstance) else instance.pk
+    logger.debug(f"update_filename_and_move_files ENTERED for doc {doc_id}, sender={sender.__name__}")
+
     if isinstance(instance, CustomFieldInstance):
         if not _filename_template_uses_custom_fields(instance.document):
+            logger.debug(f"update_filename_and_move_files: CustomFieldInstance for doc {doc_id} - template doesn't use custom fields, returning")
             return
         instance = instance.document
 
@@ -440,9 +447,13 @@ def update_filename_and_move_files(
         # the file.
         #
         # This will in turn cause this logic to move the file where it belongs.
+        logger.debug(f"update_filename_and_move_files: doc {instance.pk} has no filename, returning")
         return
 
+    logger.debug(f"update_filename_and_move_files: Acquiring FileLock for doc {instance.pk}")
+    lock_wait_start = time.time()
     with FileLock(settings.MEDIA_LOCK):
+        logger.debug(f"update_filename_and_move_files: FileLock acquired for doc {instance.pk} after {time.time() - lock_wait_start:.3f}s")
         try:
             # If this was waiting for the lock, the filename or archive_filename
             # of this document may have been updated.  This happens if multiple updates

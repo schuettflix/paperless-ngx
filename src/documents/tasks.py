@@ -225,22 +225,89 @@ def sanity_check(*, scheduled=True, raise_on_error=True):
 
 @shared_task
 def bulk_update_documents(document_ids):
-    documents = Document.objects.filter(id__in=document_ids)
+    import time
 
-    ix = index.open_index()
+    task_start = time.time()
+    logger.info(
+        f"bulk_update_documents STARTED for document_ids={document_ids}",
+    )
 
-    for doc in documents:
-        clear_document_caches(doc.pk)
-        document_updated.send(
-            sender=None,
-            document=doc,
-            logging_group=uuid.uuid4(),
+    try:
+        logger.debug(f"bulk_update_documents: Querying documents {document_ids}")
+        query_start = time.time()
+        documents = list(Document.objects.filter(id__in=document_ids))
+        logger.debug(
+            f"bulk_update_documents: Query completed in {time.time() - query_start:.3f}s, "
+            f"found {len(documents)} documents",
         )
-        post_save.send(Document, instance=doc, created=False)
 
-    with AsyncWriter(ix) as writer:
+        logger.debug("bulk_update_documents: Opening search index")
+        index_start = time.time()
+        ix = index.open_index()
+        logger.debug(
+            f"bulk_update_documents: Index opened in {time.time() - index_start:.3f}s",
+        )
+
         for doc in documents:
-            index.update_document(writer, doc)
+            doc_start = time.time()
+            logger.debug(f"bulk_update_documents: Processing document {doc.pk}")
+
+            logger.debug(f"bulk_update_documents: Clearing caches for doc {doc.pk}")
+            clear_document_caches(doc.pk)
+
+            logger.debug(
+                f"bulk_update_documents: Sending document_updated signal for doc {doc.pk}",
+            )
+            signal_start = time.time()
+            document_updated.send(
+                sender=None,
+                document=doc,
+                logging_group=uuid.uuid4(),
+            )
+            logger.debug(
+                f"bulk_update_documents: document_updated signal completed for doc {doc.pk} "
+                f"in {time.time() - signal_start:.3f}s",
+            )
+
+            logger.debug(
+                f"bulk_update_documents: Sending post_save signal for doc {doc.pk}",
+            )
+            post_save_start = time.time()
+            post_save.send(Document, instance=doc, created=False)
+            logger.debug(
+                f"bulk_update_documents: post_save signal completed for doc {doc.pk} "
+                f"in {time.time() - post_save_start:.3f}s",
+            )
+
+            logger.debug(
+                f"bulk_update_documents: Document {doc.pk} processed in "
+                f"{time.time() - doc_start:.3f}s",
+            )
+
+        logger.debug("bulk_update_documents: Starting AsyncWriter for index updates")
+        writer_start = time.time()
+        with AsyncWriter(ix) as writer:
+            for doc in documents:
+                logger.debug(
+                    f"bulk_update_documents: Updating index for doc {doc.pk}",
+                )
+                index.update_document(writer, doc)
+        logger.debug(
+            f"bulk_update_documents: Index updates completed in "
+            f"{time.time() - writer_start:.3f}s",
+        )
+
+        logger.info(
+            f"bulk_update_documents COMPLETED for document_ids={document_ids} "
+            f"in {time.time() - task_start:.3f}s",
+        )
+
+    except Exception as e:
+        logger.error(
+            f"bulk_update_documents FAILED for document_ids={document_ids} "
+            f"after {time.time() - task_start:.3f}s: {e}",
+            exc_info=True,
+        )
 
 
 @shared_task
