@@ -23,6 +23,7 @@ from django.db.models import Q
 from django.dispatch import receiver
 from django.utils import timezone
 from filelock import FileLock
+from filelock import Timeout
 
 from documents import matching
 from documents.caching import clear_document_caches
@@ -450,137 +451,175 @@ def update_filename_and_move_files(
         logger.debug(f"update_filename_and_move_files: doc {instance.pk} has no filename, returning")
         return
 
+    # =========================================================================
+    # PHASE 1: Read database state BEFORE acquiring FileLock
+    # This prevents cross-system deadlock where:
+    #   - Worker A holds FileLock, waits for DB lock
+    #   - Worker B holds DB lock, waits for FileLock
+    # See incident/cross-system-deadlock-analysis.md for details.
+    # =========================================================================
+    instance.refresh_from_db()
+
+    old_filename = instance.filename
+    old_source_path = instance.source_path
+    old_archive_filename = instance.archive_filename
+    old_archive_path = instance.archive_path
+
+    # Generate new filenames (may involve DB queries for custom fields)
+    candidate_filename = generate_filename(instance)
+    candidate_source_path = (
+        settings.ORIGINALS_DIR / candidate_filename
+    ).resolve()
+    if candidate_filename == Path(old_filename):
+        new_filename = Path(old_filename)
+    elif (
+        candidate_source_path.exists()
+        and candidate_source_path != old_source_path
+    ):
+        # Only fall back to unique search when there is an actual conflict
+        new_filename = generate_unique_filename(instance)
+    else:
+        new_filename = candidate_filename
+
+    # Need to convert to string to be able to save it to the db
+    instance.filename = str(new_filename)
+    move_original = old_filename != instance.filename
+
+    if instance.has_archive_version:
+        archive_candidate = generate_filename(instance, archive_filename=True)
+        archive_candidate_path = (
+            settings.ARCHIVE_DIR / archive_candidate
+        ).resolve()
+        if archive_candidate == Path(old_archive_filename):
+            new_archive_filename = Path(old_archive_filename)
+        elif (
+            archive_candidate_path.exists()
+            and archive_candidate_path != old_archive_path
+        ):
+            new_archive_filename = generate_unique_filename(
+                instance,
+                archive_filename=True,
+            )
+        else:
+            new_archive_filename = archive_candidate
+
+        instance.archive_filename = str(new_archive_filename)
+        move_archive = old_archive_filename != instance.archive_filename
+    else:
+        move_archive = False
+
+    if not move_original and not move_archive:
+        # No file move needed, just update timestamp (outside any lock)
+        Document.objects.filter(pk=instance.pk).update(
+            modified=timezone.now(),
+        )
+        return
+
+    # =========================================================================
+    # PHASE 2: Acquire FileLock with TIMEOUT for file operations only
+    # Timeout prevents infinite wait that caused 30-minute system freeze.
+    # =========================================================================
+    FILELOCK_TIMEOUT_SECONDS = 30  # Fail fast instead of waiting forever
+
     logger.debug(f"update_filename_and_move_files: Acquiring FileLock for doc {instance.pk}")
     lock_wait_start = time.time()
-    with FileLock(settings.MEDIA_LOCK):
-        logger.debug(f"update_filename_and_move_files: FileLock acquired for doc {instance.pk} after {time.time() - lock_wait_start:.3f}s")
-        try:
-            # If this was waiting for the lock, the filename or archive_filename
-            # of this document may have been updated.  This happens if multiple updates
-            # get queued from the UI for the same document
-            # So freshen up the data before doing anything
+
+    try:
+        with FileLock(settings.MEDIA_LOCK, timeout=FILELOCK_TIMEOUT_SECONDS):
+            logger.debug(f"update_filename_and_move_files: FileLock acquired for doc {instance.pk} after {time.time() - lock_wait_start:.3f}s")
+
+            # Re-check if files still need moving (state may have changed while waiting)
             instance.refresh_from_db()
-
-            old_filename = instance.filename
-            old_source_path = instance.source_path
-
-            candidate_filename = generate_filename(instance)
-            candidate_source_path = (
-                settings.ORIGINALS_DIR / candidate_filename
-            ).resolve()
-            if candidate_filename == Path(old_filename):
-                new_filename = Path(old_filename)
-            elif (
-                candidate_source_path.exists()
-                and candidate_source_path != old_source_path
-            ):
-                # Only fall back to unique search when there is an actual conflict
-                new_filename = generate_unique_filename(instance)
-            else:
-                new_filename = candidate_filename
-
-            # Need to convert to string to be able to save it to the db
-            instance.filename = str(new_filename)
-            move_original = old_filename != instance.filename
-
-            old_archive_filename = instance.archive_filename
-            old_archive_path = instance.archive_path
-
-            if instance.has_archive_version:
-                archive_candidate = generate_filename(instance, archive_filename=True)
-                archive_candidate_path = (
-                    settings.ARCHIVE_DIR / archive_candidate
-                ).resolve()
-                if archive_candidate == Path(old_archive_filename):
-                    new_archive_filename = Path(old_archive_filename)
-                elif (
-                    archive_candidate_path.exists()
-                    and archive_candidate_path != old_archive_path
-                ):
-                    new_archive_filename = generate_unique_filename(
-                        instance,
-                        archive_filename=True,
-                    )
-                else:
-                    new_archive_filename = archive_candidate
-
-                instance.archive_filename = str(new_archive_filename)
-
-                move_archive = old_archive_filename != instance.archive_filename
-            else:
-                move_archive = False
-
-            if not move_original and not move_archive:
-                # Just update modified. Also, don't save() here to prevent infinite recursion.
-                Document.objects.filter(pk=instance.pk).update(
-                    modified=timezone.now(),
-                )
+            if instance.filename != old_filename or instance.archive_filename != old_archive_filename:
+                # Another process already updated the filenames in DB
+                logger.debug(f"update_filename_and_move_files: doc {instance.pk} filenames already updated by another process, skipping")
                 return
 
-            if move_original:
-                validate_move(instance, old_source_path, instance.source_path)
-                create_source_path_directory(instance.source_path)
-                shutil.move(old_source_path, instance.source_path)
+            # Restore our intended new filenames (refresh_from_db overwrote them)
+            instance.filename = str(new_filename)
+            if instance.has_archive_version:
+                instance.archive_filename = str(new_archive_filename)
 
-            if move_archive:
-                validate_move(instance, old_archive_path, instance.archive_path)
-                create_source_path_directory(instance.archive_path)
-                shutil.move(old_archive_path, instance.archive_path)
-
-            # Don't save() here to prevent infinite recursion.
-            Document.global_objects.filter(pk=instance.pk).update(
-                filename=instance.filename,
-                archive_filename=instance.archive_filename,
-                modified=timezone.now(),
-            )
-            # Clear any caching for this document.  Slightly overkill, but not terrible
-            clear_document_caches(instance.pk)
-
-        except (OSError, DatabaseError, CannotMoveFilesException) as e:
-            logger.warning(f"Exception during file handling: {e}")
-            # This happens when either:
-            #  - moving the files failed due to file system errors
-            #  - saving to the database failed due to database errors
-            # In both cases, we need to revert to the original state.
-
-            # Try to move files to their original location.
             try:
-                if move_original and instance.source_path.is_file():
-                    logger.info("Restoring previous original path")
-                    shutil.move(instance.source_path, old_source_path)
+                if move_original:
+                    validate_move(instance, old_source_path, instance.source_path)
+                    create_source_path_directory(instance.source_path)
+                    shutil.move(old_source_path, instance.source_path)
 
-                if move_archive and instance.archive_path.is_file():
-                    logger.info("Restoring previous archive path")
-                    shutil.move(instance.archive_path, old_archive_path)
+                if move_archive:
+                    validate_move(instance, old_archive_path, instance.archive_path)
+                    create_source_path_directory(instance.archive_path)
+                    shutil.move(old_archive_path, instance.archive_path)
 
-            except Exception:
-                # This is fine, since:
-                # A: if we managed to move source from A to B, we will also
-                #  manage to move it from B to A. If not, we have a serious
-                #  issue that's going to get caught by the santiy checker.
-                #  All files remain in place and will never be overwritten,
-                #  so this is not the end of the world.
-                # B: if moving the original file failed, nothing has changed
-                #  anyway.
-                pass
+            except (OSError, CannotMoveFilesException) as e:
+                logger.warning(f"Exception during file move: {e}")
+                # Revert file moves if possible
+                try:
+                    if move_original and instance.source_path.is_file():
+                        logger.info("Restoring previous original path")
+                        shutil.move(instance.source_path, old_source_path)
+                    if move_archive and instance.archive_path.is_file():
+                        logger.info("Restoring previous archive path")
+                        shutil.move(instance.archive_path, old_archive_path)
+                except Exception:
+                    pass  # Best effort recovery
+                # Restore instance state
+                instance.filename = old_filename
+                instance.archive_filename = old_archive_filename
+                raise
 
-            # restore old values on the instance
-            instance.filename = old_filename
-            instance.archive_filename = old_archive_filename
+    except Timeout:
+        logger.warning(
+            f"update_filename_and_move_files: FileLock timeout after {FILELOCK_TIMEOUT_SECONDS}s for doc {instance.pk}. "
+            f"Skipping file move to prevent deadlock. Files may need manual reconciliation."
+        )
+        # Restore instance state since we didn't move files
+        instance.filename = old_filename
+        instance.archive_filename = old_archive_filename
+        return
 
-        # finally, remove any empty sub folders. This will do nothing if
-        # something has failed above.
-        if not old_source_path.is_file():
-            delete_empty_directories(
-                Path(old_source_path).parent,
-                root=settings.ORIGINALS_DIR,
-            )
+    # =========================================================================
+    # PHASE 3: Update database AFTER releasing FileLock
+    # This ensures we don't hold FileLock while waiting for DB locks.
+    # =========================================================================
+    try:
+        Document.global_objects.filter(pk=instance.pk).update(
+            filename=instance.filename,
+            archive_filename=instance.archive_filename,
+            modified=timezone.now(),
+        )
+        clear_document_caches(instance.pk)
+    except DatabaseError as e:
+        logger.warning(f"Exception during database update after file move: {e}")
+        # Files were moved but DB update failed.
+        # Try to revert file moves to maintain consistency.
+        try:
+            if move_original and instance.source_path.is_file():
+                logger.info("Restoring previous original path after DB error")
+                shutil.move(instance.source_path, old_source_path)
+            if move_archive and instance.archive_path.is_file():
+                logger.info("Restoring previous archive path after DB error")
+                shutil.move(instance.archive_path, old_archive_path)
+        except Exception:
+            # Best effort recovery - sanity checker will catch inconsistencies
+            pass
+        # Restore instance state
+        instance.filename = old_filename
+        instance.archive_filename = old_archive_filename
+        return
 
-        if instance.has_archive_version and not old_archive_path.is_file():
-            delete_empty_directories(
-                Path(old_archive_path).parent,
-                root=settings.ARCHIVE_DIR,
-            )
+    # Cleanup: remove any empty sub folders after successful move
+    if not old_source_path.is_file():
+        delete_empty_directories(
+            Path(old_source_path).parent,
+            root=settings.ORIGINALS_DIR,
+        )
+
+    if instance.has_archive_version and not old_archive_path.is_file():
+        delete_empty_directories(
+            Path(old_archive_path).parent,
+            root=settings.ARCHIVE_DIR,
+        )
 
 
 @shared_task
