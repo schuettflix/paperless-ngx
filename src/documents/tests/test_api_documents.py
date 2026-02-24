@@ -1216,6 +1216,17 @@ class TestDocumentApi(DirectoriesMixin, DocumentConsumeDelayMixin, APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
+    def test_upload_insufficient_permissions(self):
+        self.client.force_authenticate(user=User.objects.create_user("testuser2"))
+
+        with (Path(__file__).parent / "samples" / "simple.pdf").open("rb") as f:
+            response = self.client.post(
+                "/api/documents/post_document/",
+                {"document": f},
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
     def test_upload_empty_metadata(self):
         self.consume_file_mock.return_value = celery.result.AsyncResult(
             id=str(uuid.uuid4()),
@@ -1663,6 +1674,44 @@ class TestDocumentApi(DirectoriesMixin, DocumentConsumeDelayMixin, APITestCase):
                 self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         self.consume_file_mock.assert_not_called()
+
+    def test_patch_document_integer_custom_field_out_of_range(self):
+        """
+        GIVEN:
+            - An integer custom field
+            - A document
+        WHEN:
+            - Patching the document with an integer value exceeding PostgreSQL's range
+        THEN:
+            - HTTP 400 is returned (validation catches the overflow)
+            - No custom field instance is created
+        """
+        cf_int = CustomField.objects.create(
+            name="intfield",
+            data_type=CustomField.FieldDataType.INT,
+        )
+        doc = Document.objects.create(
+            title="Doc",
+            checksum="123",
+            mime_type="application/pdf",
+        )
+
+        response = self.client.patch(
+            f"/api/documents/{doc.pk}/",
+            {
+                "custom_fields": [
+                    {
+                        "field": cf_int.pk,
+                        "value": 2**31,  # overflow for PostgreSQL integer fields
+                    },
+                ],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("custom_fields", response.data)
+        self.assertEqual(CustomFieldInstance.objects.count(), 0)
 
     def test_upload_with_webui_source(self):
         """

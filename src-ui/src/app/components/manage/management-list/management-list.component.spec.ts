@@ -33,7 +33,6 @@ import { Tag } from 'src/app/data/tag'
 import { IfPermissionsDirective } from 'src/app/directives/if-permissions.directive'
 import { SortableDirective } from 'src/app/directives/sortable.directive'
 import { PermissionsGuard } from 'src/app/guards/permissions.guard'
-import { SafeHtmlPipe } from 'src/app/pipes/safehtml.pipe'
 import { DocumentListViewService } from 'src/app/services/document-list-view.service'
 import {
   PermissionAction,
@@ -93,7 +92,6 @@ describe('ManagementListComponent', () => {
         SortableDirective,
         PageHeaderComponent,
         IfPermissionsDirective,
-        SafeHtmlPipe,
         ConfirmDialogComponent,
         PermissionsDialogComponent,
       ],
@@ -230,6 +228,21 @@ describe('ManagementListComponent', () => {
     editDialog.confirmClicked.emit()
     expect(reloadSpy).toHaveBeenCalled()
   })
+
+  it('should use the all list length for collection size when provided', fakeAsync(() => {
+    jest.spyOn(tagService, 'listFiltered').mockReturnValueOnce(
+      of({
+        count: 1,
+        all: [1, 2, 3],
+        results: tags.slice(0, 1),
+      })
+    )
+
+    component.reloadData()
+    tick(100)
+
+    expect(component.collectionSize).toBe(3)
+  }))
 
   it('should support quick filter for objects', () => {
     const qfSpy = jest.spyOn(documentListViewService, 'quickFilter')

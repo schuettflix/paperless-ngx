@@ -30,7 +30,6 @@ import {
 } from 'src/app/data/workflow-trigger'
 import { IfOwnerDirective } from 'src/app/directives/if-owner.directive'
 import { IfPermissionsDirective } from 'src/app/directives/if-permissions.directive'
-import { SafeHtmlPipe } from 'src/app/pipes/safehtml.pipe'
 import { CorrespondentService } from 'src/app/services/rest/correspondent.service'
 import { CustomFieldsService } from 'src/app/services/rest/custom-fields.service'
 import { DocumentTypeService } from 'src/app/services/rest/document-type.service'
@@ -105,7 +104,6 @@ describe('WorkflowEditDialogComponent', () => {
         TagsComponent,
         PermissionsUserComponent,
         PermissionsGroupComponent,
-        SafeHtmlPipe,
         ConfirmButtonComponent,
       ],
       providers: [
@@ -254,7 +252,7 @@ describe('WorkflowEditDialogComponent', () => {
     expect(component.object.actions.length).toEqual(2)
   })
 
-  it('should update order and remove ids from actions on drag n drop', () => {
+  it('should update order on drag n drop', () => {
     const action1 = workflow.actions[0]
     const action2 = workflow.actions[1]
     component.object = workflow
@@ -263,8 +261,6 @@ describe('WorkflowEditDialogComponent', () => {
       WorkflowAction[]
     >)
     expect(component.object.actions).toEqual([action2, action1])
-    expect(action1.id).toBeNull()
-    expect(action2.id).toBeNull()
   })
 
   it('should not include auto matching in algorithms', () => {

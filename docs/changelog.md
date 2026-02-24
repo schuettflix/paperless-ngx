@@ -1,5 +1,168 @@
 # Changelog
 
+## paperless-ngx 2.20.7
+
+### Bug Fixes
+
+-   Performance fix: use subqueries to improve object retrieval in large installs [@shamoon](https://github.com/shamoon) ([#11950](https://github.com/paperless-ngx/paperless-ngx/pull/11950))
+-   Fix: correct user dropdown button icon styling [@shamoon](https://github.com/shamoon) ([#12092](https://github.com/paperless-ngx/paperless-ngx/issues/12092))
+-   Fix: fix broken docker create_classifier command in 2.20.6 [@shamoon](https://github.com/shamoon) ([#11965](https://github.com/paperless-ngx/paperless-ngx/issues/11965))
+
+### All App Changes
+
+<details>
+<summary>3 changes</summary>
+
+-   Performance fix: use subqueries to improve object retrieval in large installs [@shamoon](https://github.com/shamoon) ([#11950](https://github.com/paperless-ngx/paperless-ngx/pull/11950))
+-   Fix: correct user dropdown button icon styling [@shamoon](https://github.com/shamoon) ([#12092](https://github.com/paperless-ngx/paperless-ngx/issues/12092))
+-   Fix: fix broken docker create_classifier command in 2.20.6 [@shamoon](https://github.com/shamoon) ([#11965](https://github.com/paperless-ngx/paperless-ngx/issues/11965))
+</details>
+
+## paperless-ngx 2.20.6
+
+### Bug Fixes
+
+-   Fix: extract all ids for nested tags [@shamoon](https://github.com/shamoon) ([#11888](https://github.com/paperless-ngx/paperless-ngx/pull/11888))
+-   Fixhancement: change date calculation for 'this year' to include future documents [@shamoon](https://github.com/shamoon) ([#11884](https://github.com/paperless-ngx/paperless-ngx/pull/11884))
+-   Fix: Running management scripts under rootless could fail [@stumpylog](https://github.com/stumpylog) ([#11870](https://github.com/paperless-ngx/paperless-ngx/pull/11870))
+-   Fix: use correct field id for overrides [@shamoon](https://github.com/shamoon) ([#11869](https://github.com/paperless-ngx/paperless-ngx/pull/11869))
+
+### All App Changes
+
+<details>
+<summary>3 changes</summary>
+
+-   Fix: extract all ids for nested tags [@shamoon](https://github.com/shamoon) ([#11888](https://github.com/paperless-ngx/paperless-ngx/pull/11888))
+-   Fixhancement: change date calculation for 'this year' to include future documents [@shamoon](https://github.com/shamoon) ([#11884](https://github.com/paperless-ngx/paperless-ngx/pull/11884))
+-   Fix: use correct field id for overrides [@shamoon](https://github.com/shamoon) ([#11869](https://github.com/paperless-ngx/paperless-ngx/pull/11869))
+</details>
+
+## paperless-ngx 2.20.5
+
+### Bug Fixes
+
+-   Fix: ensure horizontal scroll for long tag names in list, wrap tags without parent [@shamoon](https://github.com/shamoon) ([#11811](https://github.com/paperless-ngx/paperless-ngx/pull/11811))
+-   Fix: use explicit order field for workflow actions [@shamoon](https://github.com/shamoon) [@stumpylog](https://github.com/stumpylog) ([#11781](https://github.com/paperless-ngx/paperless-ngx/pull/11781))
+
+### All App Changes
+
+<details>
+<summary>2 changes</summary>
+
+-   Fix: ensure horizontal scroll for long tag names in list, wrap tags without parent [@shamoon](https://github.com/shamoon) ([#11811](https://github.com/paperless-ngx/paperless-ngx/pull/11811))
+-   Fix: use explicit order field for workflow actions [@shamoon](https://github.com/shamoon) [@stumpylog](https://github.com/stumpylog) ([#11781](https://github.com/paperless-ngx/paperless-ngx/pull/11781))
+</details>
+
+## paperless-ngx 2.20.4
+
+### Security
+
+-   Resolve [GHSA-28cf-xvcf-hw6m](https://github.com/paperless-ngx/paperless-ngx/security/advisories/GHSA-28cf-xvcf-hw6m)
+
+### Bug Fixes
+
+-   Fix: propagate metadata override created value [@shamoon](https://github.com/shamoon) ([#11659](https://github.com/paperless-ngx/paperless-ngx/pull/11659))
+-   Fix: support ordering by storage path name [@shamoon](https://github.com/shamoon) ([#11661](https://github.com/paperless-ngx/paperless-ngx/pull/11661))
+-   Fix: validate cf integer values within PostgreSQL range [@shamoon](https://github.com/shamoon) ([#11666](https://github.com/paperless-ngx/paperless-ngx/pull/11666))
+-   Fixhancement: add error handling and retry when opening index [@shamoon](https://github.com/shamoon) ([#11731](https://github.com/paperless-ngx/paperless-ngx/pull/11731))
+-   Fix: fix recurring workflow to respect latest run time [@shamoon](https://github.com/shamoon) ([#11735](https://github.com/paperless-ngx/paperless-ngx/pull/11735))
+
+### All App Changes
+
+<details>
+<summary>5 changes</summary>
+
+-   Fix: propagate metadata override created value [@shamoon](https://github.com/shamoon) ([#11659](https://github.com/paperless-ngx/paperless-ngx/pull/11659))
+-   Fix: support ordering by storage path name [@shamoon](https://github.com/shamoon) ([#11661](https://github.com/paperless-ngx/paperless-ngx/pull/11661))
+-   Fix: validate cf integer values within PostgreSQL range [@shamoon](https://github.com/shamoon) ([#11666](https://github.com/paperless-ngx/paperless-ngx/pull/11666))
+-   Fixhancement: add error handling and retry when opening index [@shamoon](https://github.com/shamoon) ([#11731](https://github.com/paperless-ngx/paperless-ngx/pull/11731))
+-   Fix: fix recurring workflow to respect latest run time [@shamoon](https://github.com/shamoon) ([#11735](https://github.com/paperless-ngx/paperless-ngx/pull/11735))
+</details>
+
+## paperless-ngx 2.20.3
+
+### Security
+
+-   Resolve [GHSA-7cq3-mhxq-w946](https://github.com/paperless-ngx/paperless-ngx/security/advisories/GHSA-7cq3-mhxq-w946)
+
+## paperless-ngx 2.20.2
+
+### Security
+
+-   Resolve [GHSA-6653-vcx4-69mc](https://github.com/paperless-ngx/paperless-ngx/security/advisories/GHSA-6653-vcx4-69mc)
+-   Resolve [GHSA-24x5-wp64-9fcc](https://github.com/paperless-ngx/paperless-ngx/security/advisories/GHSA-24x5-wp64-9fcc)
+
+### Features / Enhancements
+
+-   Tweakhancement: dim inactive users in users-groups list [@shamoon](https://github.com/shamoon) ([#11537](https://github.com/paperless-ngx/paperless-ngx/pull/11537))
+
+### Bug Fixes
+
+-   Fix: Expanded SVG validation whitelist and additional checks [@stumpylog](https://github.com/stumpylog) ([#11590](https://github.com/paperless-ngx/paperless-ngx/pull/11590))
+-   Fix: normalize allowed SVG tag and attribute names, add version [@shamoon](https://github.com/shamoon) ([#11586](https://github.com/paperless-ngx/paperless-ngx/pull/11586))
+-   Fix: pass additional arguments to TagSerializer for permissions [@shamoon](https://github.com/shamoon) ([#11576](https://github.com/paperless-ngx/paperless-ngx/pull/11576))
+
+### Maintenance
+
+-   Chore(deps): Bump actions/checkout from 5 to 6 in the actions group @[dependabot[bot]](https://github.com/apps/dependabot) ([#11515](https://github.com/paperless-ngx/paperless-ngx/pull/11515))
+
+### Dependencies
+
+<details>
+<summary>6 changes</summary>
+
+-   Chore: update Angular dependencies to 20.3.15 [@shamoon](https://github.com/shamoon) ([#11568](https://github.com/paperless-ngx/paperless-ngx/pull/11568))
+-   Chore(deps): Bump actions/checkout from 5 to 6 in the actions group @[dependabot[bot]](https://github.com/apps/dependabot) ([#11515](https://github.com/paperless-ngx/paperless-ngx/pull/11515))
+-   Chore(deps-dev): Bump webpack from 5.102.1 to 5.103.0 in /src-ui @[dependabot[bot]](https://github.com/apps/dependabot) ([#11513](https://github.com/paperless-ngx/paperless-ngx/pull/11513))
+-   Chore(deps-dev): Bump @playwright/test from 1.56.1 to 1.57.0 in /src-ui @[dependabot[bot]](https://github.com/apps/dependabot) ([#11514](https://github.com/paperless-ngx/paperless-ngx/pull/11514))
+-   Chore(deps-dev): Bump the frontend-eslint-dependencies group in /src-ui with 3 updates @[dependabot[bot]](https://github.com/apps/dependabot) ([#11512](https://github.com/paperless-ngx/paperless-ngx/pull/11512))
+-   docker(deps): bump astral-sh/uv from 0.9.14-python3.12-trixie-slim to 0.9.15-python3.12-trixie-slim @[dependabot[bot]](https://github.com/apps/dependabot) ([#11533](https://github.com/paperless-ngx/paperless-ngx/pull/11533))
+</details>
+
+### All App Changes
+
+<details>
+<summary>12 changes</summary>
+
+-   Fix: Expanded SVG validation whitelist and additional checks [@stumpylog](https://github.com/stumpylog) ([#11590](https://github.com/paperless-ngx/paperless-ngx/pull/11590))
+-   Fixhancement: pass ordering to tag children [@shamoon](https://github.com/shamoon) ([#11556](https://github.com/paperless-ngx/paperless-ngx/pull/11556))
+-   Performance: avoid unnecessary filename operations on bulk custom field updates [@shamoon](https://github.com/shamoon) ([#11558](https://github.com/paperless-ngx/paperless-ngx/pull/11558))
+-   Fix: normalize allowed SVG tag and attribute names, add version [@shamoon](https://github.com/shamoon) ([#11586](https://github.com/paperless-ngx/paperless-ngx/pull/11586))
+-   Chore: refactor workflows code [@shamoon](https://github.com/shamoon) ([#11563](https://github.com/paperless-ngx/paperless-ngx/pull/11563))
+-   Fix: pass additional arguments to TagSerializer for permissions [@shamoon](https://github.com/shamoon) ([#11576](https://github.com/paperless-ngx/paperless-ngx/pull/11576))
+-   Chore: update Angular dependencies to 20.3.15 [@shamoon](https://github.com/shamoon) ([#11568](https://github.com/paperless-ngx/paperless-ngx/pull/11568))
+-   Chore(deps-dev): Bump webpack from 5.102.1 to 5.103.0 in /src-ui @[dependabot[bot]](https://github.com/apps/dependabot) ([#11513](https://github.com/paperless-ngx/paperless-ngx/pull/11513))
+-   Chore(deps-dev): Bump @playwright/test from 1.56.1 to 1.57.0 in /src-ui @[dependabot[bot]](https://github.com/apps/dependabot) ([#11514](https://github.com/paperless-ngx/paperless-ngx/pull/11514))
+-   Chore(deps-dev): Bump the frontend-eslint-dependencies group in /src-ui with 3 updates @[dependabot[bot]](https://github.com/apps/dependabot) ([#11512](https://github.com/paperless-ngx/paperless-ngx/pull/11512))
+-   Tweakhancement: dim inactive users in users-groups list [@shamoon](https://github.com/shamoon) ([#11537](https://github.com/paperless-ngx/paperless-ngx/pull/11537))
+-   Chore: add some output of social login errors [@shamoon](https://github.com/shamoon) ([#11527](https://github.com/paperless-ngx/paperless-ngx/pull/11527))
+</details>
+
+## paperless-ngx 2.20.1
+
+### Bug Fixes
+
+-   Fix: set search term when using advanced search from global search [@shamoon](https://github.com/shamoon) ([#11503](https://github.com/paperless-ngx/paperless-ngx/pull/11503))
+-   Fix: change async handling of select custom field updates [@shamoon](https://github.com/shamoon) ([#11490](https://github.com/paperless-ngx/paperless-ngx/pull/11490))
+-   Fix: skip SSL for MariaDB ping in init script [@danielrheinbay](https://github.com/danielrheinbay) ([#11491](https://github.com/paperless-ngx/paperless-ngx/pull/11491))
+-   Fix: handle allauth groups location breaking change [@shamoon](https://github.com/shamoon) ([#11471](https://github.com/paperless-ngx/paperless-ngx/pull/11471))
+
+### Dependencies
+
+-   docker(deps): Bump astral-sh/uv from 0.9.10-python3.12-trixie-slim to 0.9.11-python3.12-trixie-slim @[dependabot[bot]](https://github.com/apps/dependabot) ([#11450](https://github.com/paperless-ngx/paperless-ngx/pull/11450))
+-   Chore(deps): Bump @angular/common from 20.3.12 to 20.3.14 in /src-ui @[dependabot[bot]](https://github.com/apps/dependabot) ([#11481](https://github.com/paperless-ngx/paperless-ngx/pull/11481))
+
+### All App Changes
+
+<details>
+<summary>4 changes</summary>
+
+-   Fix: set search term when using advanced search from global search [@shamoon](https://github.com/shamoon) ([#11503](https://github.com/paperless-ngx/paperless-ngx/pull/11503))
+-   Fix: change async handling of select custom field updates [@shamoon](https://github.com/shamoon) ([#11490](https://github.com/paperless-ngx/paperless-ngx/pull/11490))
+-   Chore(deps): Bump @angular/common from 20.3.12 to 20.3.14 in /src-ui @[dependabot[bot]](https://github.com/apps/dependabot) ([#11481](https://github.com/paperless-ngx/paperless-ngx/pull/11481))
+-   Fix: handle allauth groups location breaking change [@shamoon](https://github.com/shamoon) ([#11471](https://github.com/paperless-ngx/paperless-ngx/pull/11471))
+</details>
+
 ## paperless-ngx 2.20.0
 
 ### Notable Changes
