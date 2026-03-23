@@ -414,15 +414,8 @@ def update_filename_and_move_files(
     instance: Document | CustomFieldInstance,
     **kwargs,
 ):
-    import time
-
-    func_start = time.time()
-    doc_id = instance.document.pk if isinstance(instance, CustomFieldInstance) else instance.pk
-    logger.debug(f"update_filename_and_move_files ENTERED for doc {doc_id}, sender={sender.__name__}")
-
     if isinstance(instance, CustomFieldInstance):
         if not _filename_template_uses_custom_fields(instance.document):
-            logger.debug(f"update_filename_and_move_files: CustomFieldInstance for doc {doc_id} - template doesn't use custom fields, returning")
             return
         instance = instance.document
 
@@ -456,7 +449,6 @@ def update_filename_and_move_files(
         # the file.
         #
         # This will in turn cause this logic to move the file where it belongs.
-        logger.debug(f"update_filename_and_move_files: doc {instance.pk} has no filename, returning")
         return
 
     # =========================================================================
@@ -529,18 +521,13 @@ def update_filename_and_move_files(
     # =========================================================================
     FILELOCK_TIMEOUT_SECONDS = 30  # Fail fast instead of waiting forever
 
-    logger.debug(f"update_filename_and_move_files: Acquiring FileLock for doc {instance.pk}")
-    lock_wait_start = time.time()
-
     try:
         with FileLock(settings.MEDIA_LOCK, timeout=FILELOCK_TIMEOUT_SECONDS):
-            logger.debug(f"update_filename_and_move_files: FileLock acquired for doc {instance.pk} after {time.time() - lock_wait_start:.3f}s")
 
             # Re-check if files still need moving (state may have changed while waiting)
             instance.refresh_from_db()
             if instance.filename != old_filename or instance.archive_filename != old_archive_filename:
                 # Another process already updated the filenames in DB
-                logger.debug(f"update_filename_and_move_files: doc {instance.pk} filenames already updated by another process, skipping")
                 return
 
             # Restore our intended new filenames (refresh_from_db overwrote them)
