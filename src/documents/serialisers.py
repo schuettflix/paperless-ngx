@@ -75,6 +75,7 @@ from documents.parsers import is_mime_type_supported
 from documents.permissions import get_document_count_filter_for_user
 from documents.permissions import get_groups_with_only_permission
 from documents.permissions import get_objects_for_user_owner_aware
+from documents.permissions import has_perms_owner_aware
 from documents.permissions import set_permissions_for_object
 from documents.regex import validate_regex_pattern
 from documents.templating.filepath import validate_filepath_template_and_render
@@ -852,6 +853,25 @@ class ReadWriteSerializerMethodField(serializers.SerializerMethodField):
         return {self.field_name: data}
 
 
+def validate_documentlink_targets(user, doc_ids):
+    if Document.objects.filter(id__in=doc_ids).count() != len(doc_ids):
+        raise serializers.ValidationError(
+            "Some documents in value don't exist or were specified twice.",
+        )
+
+    if user is None:
+        return
+
+    target_documents = Document.objects.filter(id__in=doc_ids).select_related("owner")
+    if not all(
+        has_perms_owner_aware(user, "change_document", document)
+        for document in target_documents
+    ):
+        raise PermissionDenied(
+            _("Insufficient permissions."),
+        )
+
+
 class CustomFieldInstanceSerializer(serializers.ModelSerializer):
     field = serializers.PrimaryKeyRelatedField(queryset=CustomField.objects.all())
     value = ReadWriteSerializerMethodField(allow_null=True)
@@ -942,12 +962,11 @@ class CustomFieldInstanceSerializer(serializers.ModelSerializer):
                         "Value must be a list",
                     )
                 doc_ids = data["value"]
-                if Document.objects.filter(id__in=doc_ids).count() != len(
-                    data["value"],
-                ):
-                    raise serializers.ValidationError(
-                        "Some documents in value don't exist or were specified twice.",
-                    )
+                request = self.context.get("request")
+                validate_documentlink_targets(
+                    getattr(request, "user", None) if request is not None else None,
+                    doc_ids,
+                )
 
         return data
 
@@ -1496,6 +1515,19 @@ class BulkEditSerializer(
             raise serializers.ValidationError(
                 f"Some custom fields in {name} don't exist or were specified twice.",
             )
+
+        if isinstance(custom_fields, dict):
+            custom_field_map = CustomField.objects.in_bulk(ids)
+            for raw_field_id, value in custom_fields.items():
+                field = custom_field_map.get(int(raw_field_id))
+                if (
+                    field is not None
+                    and field.data_type == CustomField.FieldDataType.DOCUMENTLINK
+                    and value is not None
+                ):
+                    if not isinstance(value, list):
+                        raise serializers.ValidationError("Value must be a list")
+                    validate_documentlink_targets(self.user, value)
 
     def validate_method(self, method):
         if method == "set_correspondent":
@@ -2178,6 +2210,17 @@ class ShareLinkSerializer(OwnedObjectSerializer):
     def create(self, validated_data):
         validated_data["slug"] = get_random_string(50)
         return super().create(validated_data)
+
+    def validate_document(self, document):
+        if self.user is not None and has_perms_owner_aware(
+            self.user,
+            "view_document",
+            document,
+        ):
+            return document
+        raise PermissionDenied(
+            _("Insufficient permissions."),
+        )
 
 
 class BulkEditObjectsSerializer(SerializerWithPerms, SetPermissionsMixin):
